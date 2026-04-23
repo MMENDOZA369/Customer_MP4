@@ -1,31 +1,44 @@
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import os
 
 
 def compress_video(input_path, output_path, target_size_mb=20):
-    # Cargar el video
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"No existe el archivo: {input_path}")
+
     clip = VideoFileClip(input_path)
 
-    # Obtener la duración del video en segundos
-    duration = clip.duration
+    duration = clip.duration  # segundos
 
-    # Calcular el bitrate necesario para alcanzar el tamaño deseado
-    target_size_bytes = target_size_mb * 1024 * 1024
-    target_bitrate = (target_size_bytes * 8) / duration / 1000  # en kbps
+    # Tamaño objetivo en bits
+    target_size_bits = target_size_mb * 1024 * 1024 * 8
 
-    # Ajustar la calidad del video
+    # Reservar bitrate para audio (ej: 128 kbps)
+    audio_bitrate = 128 * 1000  # bits por segundo
+
+    # Calcular bitrate total permitido
+    total_bitrate = target_size_bits / duration
+
+    # Bitrate de video = total - audio
+    video_bitrate = total_bitrate - audio_bitrate
+
+    if video_bitrate <= 0:
+        raise ValueError("El video es demasiado corto para ese tamaño objetivo")
+
+    print(f"Bitrate video: {int(video_bitrate/1000)} kbps")
+
     clip.write_videofile(
         output_path,
-        codec='libx264',  # Codec común para videos MP4
-        bitrate=f'{int(target_bitrate)}k',
-        audio_codec='aac'  # Codec para audio, puedes ajustar según sea necesario
+        codec="libx264",
+        bitrate=f"{int(video_bitrate/1000)}k",
+        audio_codec="aac",
+        audio_bitrate="128k",
+        preset="medium"  # puedes usar 'slow' para mejor compresión
     )
 
-    print(f"Video comprimido guardado en {output_path}")
+    clip.close()
+    print(f"✅ Video comprimido: {output_path}")
 
 
-# Usar el script
-input_video_path = 'Videos2.mp4'  # Cambia este nombre por el nombre del archivo de entrada
-output_video_path = 'output_video.mp4'  # Nombre del archivo de salida
-
-compress_video(input_video_path, output_video_path)
+# Uso
+compress_video("Videos2.mp4", "output_video.mp4", target_size_mb=20)
